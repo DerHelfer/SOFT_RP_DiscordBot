@@ -1,11 +1,41 @@
 using Discord;
 using Discord.Interactions;
 using System.Collections.Concurrent;
+using System.Text.Json;
 
 public class ProfileModule : InteractionModuleBase<SocketInteractionContext>
 {
     private static readonly ConcurrentDictionary<ulong, AdminProfile> AdminProfiles = new();
-    private static readonly List<string> AdminRanks = new() { "Стажер", "Помощник", "Модератор", "Админ" };
+    private static List<AdminRankType> AdminRanks = LoadRanks();
+
+    private static List<AdminRankType> LoadRanks()
+    {
+        try
+        {
+            var json = File.ReadAllText("ranks.json");
+            var ranks = JsonSerializer.Deserialize<List<AdminRankType>>(json) ?? new();
+            
+            for (int i = 0; i < ranks.Count; i++)
+            {
+                if (ranks[i].Id == 0)
+                    ranks[i] = ranks[i] with { Id = i + 1 };
+            }
+            
+            return ranks;
+        }
+        catch
+        {
+            return new();
+        }
+    }
+
+    private static void SaveRanks()
+    {
+        var json = JsonSerializer.Serialize(AdminRanks, new JsonSerializerOptions { WriteIndented = true });
+        File.WriteAllText("ranks.json", json);
+    }
+
+    public record AdminRankType(int Id, string Name, string Type);
 
     public class AdminProfile
     {
@@ -14,6 +44,7 @@ public class ProfileModule : InteractionModuleBase<SocketInteractionContext>
         public string ForumUrl { get; set; }
         public int RankId { get; set; } = 0;
     }
+
     [SlashCommand("addadmin", "Добавить администратора")]
     public async Task AddAdmin(
         [Summary("user", "Пользователь Discord")] IUser user,
@@ -39,7 +70,7 @@ public class ProfileModule : InteractionModuleBase<SocketInteractionContext>
         var embed = new EmbedBuilder()
             .WithTitle("Администратор добавлен")
             .AddField("Steam ID", sid, true)
-            .AddField("Ранг", AdminRanks[rank - 1], true)
+            .AddField("Ранг", $"{AdminRanks[rank - 1].Name} ({AdminRanks[rank - 1].Type})", true)
             .WithColor(Color.Green);
 
         if (!string.IsNullOrEmpty(name))
@@ -62,7 +93,7 @@ public class ProfileModule : InteractionModuleBase<SocketInteractionContext>
 
         if (AdminProfiles.TryGetValue(targetUser.Id, out var adminProfile))
         {
-            embed.AddField("Ранг", AdminRanks[adminProfile.RankId], true);
+            embed.AddField("Ранг", $"{AdminRanks[adminProfile.RankId].Name} ({AdminRanks[adminProfile.RankId].Type})", true);
             embed.AddField("Steam ID", adminProfile.SteamId, true);
             if (!string.IsNullOrEmpty(adminProfile.Name))
                 embed.AddField("Никнейм", adminProfile.Name, true);
@@ -82,54 +113,74 @@ public class ProfileModule : InteractionModuleBase<SocketInteractionContext>
     {
         await RespondAsync("Список админских рангов:");
 
-        for (int i = 0; i < AdminRanks.Count; i++)
+        var typeOrder = new[] { "Младшая администрация", "Старшая администрация", "Высшая администрация" };
+        
+        foreach (var type in typeOrder)
         {
+            var ranksOfType = AdminRanks.Where(r => r.Type == type).ToList();
+                
+            if (!ranksOfType.Any()) continue;
+            
+            var ranksList = string.Join("\n", ranksOfType.Select(rank => $"{rank.Id}. {rank.Name}"));
+            
             var embed = new EmbedBuilder()
-                .WithTitle($"{i + 1}. {AdminRanks[i]}")
-                .WithColor(Color.Orange)
-                .Build();
+                .WithTitle(type)
+                // .AddField("\u200b", ranksList, false)
+                .AddField(ranksList, "\u200b", false)
+                .WithColor(Color.Orange);
 
-            await Context.Channel.SendMessageAsync(embed: embed);
+            await Context.Channel.SendMessageAsync(embed: embed.Build());
         }
     }
 
     [SlashCommand("addrank", "Добавить новый ранг")]
-    public async Task AddRank([Summary("name", "Название ранга")] string name)
+    public async Task AddRank(
+        [Summary("name", "Название ранга")] string name,
+        [Summary("type", "Тип администрации")]
+        [Choice("Младшая администрация", "Младшая администрация")]
+        [Choice("Старшая администрация", "Старшая администрация")]
+        [Choice("Высшая администрация", "Высшая администрация")]
+        string type = "Младшая администрация")
     {
-        AdminRanks.Add(name);
-        await RespondAsync($"Ранг '{name}' добавлен под номером {AdminRanks.Count}");
+        var newId = AdminRanks.Any() ? AdminRanks.Max(r => r.Id) + 1 : 1;
+        AdminRanks.Add(new(newId, name, type));
+        SaveRanks();
+        await RespondAsync($"Ранг '{name}' ({type}) добавлен");
     }
 
     [SlashCommand("editrank", "Изменить название ранга")]
     public async Task EditRank(
-        [Summary("number", "Номер ранга")] int number,
+        [Summary("id", "ID ранга")] int id,
         [Summary("name", "Новое название")] string name)
     {
-        if (number < 1 || number > AdminRanks.Count)
+        var rankIndex = AdminRanks.FindIndex(r => r.Id == id);
+        if (rankIndex == -1)
         {
-            await RespondAsync($"Неверный номер. Доступные: 1-{AdminRanks.Count}", ephemeral: true);
+            await RespondAsync($"Ранг с ID {id} не найден", ephemeral: true);
             return;
         }
-        var oldName = AdminRanks[number - 1];
-        AdminRanks[number - 1] = name;
-        await RespondAsync($"Ранг '{oldName}' изменен на '{name}'");
+        var oldRank = AdminRanks[rankIndex];
+        AdminRanks[rankIndex] = new(oldRank.Id, name, oldRank.Type);
+        SaveRanks();
+        await RespondAsync($"Ранг '{oldRank.Name}' изменен на '{name}'");
     }
 
     [SlashCommand("removerank", "Удалить ранг")]
-    public async Task RemoveRank([Summary("number", "Номер ранга")] int number)
+    public async Task RemoveRank([Summary("id", "ID ранга")] int id)
     {
-        if (number < 1 || number > AdminRanks.Count)
+        var rankIndex = AdminRanks.FindIndex(r => r.Id == id);
+        if (rankIndex == -1)
         {
-            await RespondAsync($"Неверный номер. Доступные: 1-{AdminRanks.Count}", ephemeral: true);
+            await RespondAsync($"Ранг с ID {id} не найден", ephemeral: true);
             return;
         }
-        var removedRank = AdminRanks[number - 1];
-        AdminRanks.RemoveAt(number - 1);
+        var removedRank = AdminRanks[rankIndex];
+        AdminRanks.RemoveAt(rankIndex);
         
-        foreach (var profile in AdminProfiles.Values.Where(p => p.RankId >= number - 1))
-            if (profile.RankId > number - 1) profile.RankId--;
-            else profile.RankId = 0;
+        foreach (var profile in AdminProfiles.Values.Where(p => p.RankId == rankIndex))
+            profile.RankId = 0;
         
-        await RespondAsync($"Ранг '{removedRank}' удален");
+        SaveRanks();
+        await RespondAsync($"Ранг '{removedRank.Name}' удален");
     }
 }
