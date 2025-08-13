@@ -9,17 +9,50 @@ class Program
 {
     static async Task Main()
     {
-        var config = new ConfigurationBuilder()
-            .AddJsonFile("appsettings.json")
-            .Build();
+        try
+        {
+            var config = LoadConfiguration();
+            var token = ValidateToken(config);
+            
+            var client = new DiscordSocketClient();
+            var interactionService = new InteractionService(client);
+            var services = ConfigureServices(client, interactionService);
+            
+            RegisterEventHandlers(client, interactionService, services);
+            
+            await client.LoginAsync(TokenType.Bot, token);
+            await client.StartAsync();
+            await Task.Delay(-1);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Fatal error: {ex.Message}");
+        }
+    }
 
-        var client = new DiscordSocketClient();
-        var interactionService = new InteractionService(client);
-        var services = new ServiceCollection()
+    private static IConfiguration LoadConfiguration()
+    {
+        return new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
+    }
+    
+    private static string ValidateToken(IConfiguration config)
+    {
+        var token = config["DiscordToken"];
+        if (string.IsNullOrEmpty(token))
+            throw new InvalidOperationException("Discord token not found in appsettings.json");
+        return token;
+    }
+
+    private static IServiceProvider ConfigureServices(DiscordSocketClient client, InteractionService interactionService)
+    {
+        return new ServiceCollection()
             .AddSingleton(client)
             .AddSingleton(interactionService)
             .BuildServiceProvider();
+    }
 
+    private static void RegisterEventHandlers(DiscordSocketClient client, InteractionService interactionService, IServiceProvider services)
+    {
         client.Ready += async () =>
         {
             await interactionService.AddModuleAsync<ProfileModule>(services);
@@ -28,20 +61,7 @@ class Program
 
         client.SlashCommandExecuted += async (command) =>
         {
-            try
-            {
-                await interactionService.ExecuteCommandAsync(new SocketInteractionContext(client, command), services);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error: {ex.Message}");
-                if (!command.HasResponded)
-                    await command.RespondAsync("Произошла ошибка при выполнении команды.", ephemeral: true);
-            }
+            await interactionService.ExecuteCommandAsync(new SocketInteractionContext(client, command), services);
         };
-
-        await client.LoginAsync(TokenType.Bot, config["DiscordToken"]);
-        await client.StartAsync();
-        await Task.Delay(-1);
     }
 }
