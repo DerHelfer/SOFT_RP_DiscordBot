@@ -1,3 +1,32 @@
+# Build results
 bin/
 obj/
+
+# Configuration files
 appsettings.json
+appsettings.*.json
+
+# Data files
+profiles.json
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+appsettings.json
+profiles.json

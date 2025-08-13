@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"dotnet.defaultSolution": "DiscordBot.csproj",
+		"files.exclude": {
+			"**/bin": true,
+			"**/obj": true,
+			"**/.vs": true
+		},
+		"explorer.fileNesting.enabled": true,
+		"explorer.fileNesting.patterns": {
+			"*.csproj": "appsettings*.json, profiles.json"
+		}
+	}
+}

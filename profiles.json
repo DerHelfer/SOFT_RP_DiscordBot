@@ -1,18 +1,13 @@
 {
-  "552538637519028227": {
-    "Name": "Mimmo",
-    "SteamId": "STEAM_1:1:22222",
-    "Rank": "debug",
-    "Points": 0,
-    "Complaints": 0,
-    "Reports": 0
-  },
   "456009233327194112": {
     "Name": "Wisp",
-    "SteamId": "STEAM_1:1:11111",
+    "SteamId": "STEAM_0:1:11111111",
     "Rank": "debug",
-    "Points": 0,
-    "Complaints": 0,
-    "Reports": 0
+    "Url": "https://softrp.ru/forum/members/wisp",
+    "Points": 1,
+    "Complaints": 1,
+    "Reports": 1,
+    "Recruitments": 1,
+    "CheatChecks": 1
   }
 }
