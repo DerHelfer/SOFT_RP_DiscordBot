@@ -4,15 +4,12 @@ using DiscordBot.Validators;
 using DiscordBot.Builders;
 using DiscordBot.Services;
 using DiscordBot.Models;
+using DiscordBot.Constants;
 
 namespace DiscordBot.Modules;
 
 public class ProfileModule : InteractionModuleBase<SocketInteractionContext>
 {
-    static ProfileModule()
-    {
-        ProfileService.LoadProfiles();
-    }
 
     [SlashCommand("profile", "Показать профиль")]
     public async Task Profile([Summary("user", "Пользователь")] IUser user = null)
@@ -34,13 +31,13 @@ public class ProfileModule : InteractionModuleBase<SocketInteractionContext>
     {
         if (!SteamIdValidator.IsValid(steamId))
         {
-            await RespondAsync("⚠️ Неверный формат SteamID. Используйте формат: STEAM_0:[0-1]:xxxxx", ephemeral: true);
+            await RespondAsync(Messages.InvalidSteamId, ephemeral: true);
             return;
         }
 
         if (url != null && !UrlValidator.IsValidForumUrl(url))
         {
-            await RespondAsync("⚠️ Неверный формат URL. Используйте формат: https://softrp.ru/forum/members/username", ephemeral: true);
+            await RespondAsync(Messages.InvalidUrl, ephemeral: true);
             return;
         }
 

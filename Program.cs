@@ -1,10 +1,5 @@
-using Discord;
-using Discord.WebSocket;
-using Discord.Interactions;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using DiscordBot.Modules;
+using DiscordBot.Services;
 
 class Program
 {
@@ -12,17 +7,14 @@ class Program
     {
         try
         {
-            var config = LoadConfiguration();
-            var token = ValidateToken(config);
+            var services = ConfigureServices();
+            var configService = services.GetRequiredService<ConfigurationService>();
+            var discordService = services.GetRequiredService<DiscordService>();
             
-            var client = new DiscordSocketClient();
-            var interactionService = new InteractionService(client);
-            var services = ConfigureServices(client, interactionService);
+            ProfileService.LoadProfiles();
             
-            RegisterEventHandlers(client, interactionService, services);
-            
-            await client.LoginAsync(TokenType.Bot, token);
-            await client.StartAsync();
+            var token = configService.GetDiscordToken();
+            await discordService.StartAsync(token);
             await Task.Delay(-1);
         }
         catch (Exception ex)
@@ -31,38 +23,11 @@ class Program
         }
     }
 
-    private static IConfiguration LoadConfiguration()
-    {
-        return new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
-    }
-    
-    private static string ValidateToken(IConfiguration config)
-    {
-        var token = config["DiscordToken"];
-        if (string.IsNullOrEmpty(token))
-            throw new InvalidOperationException("Discord token not found in appsettings.json");
-        return token;
-    }
-
-    private static IServiceProvider ConfigureServices(DiscordSocketClient client, InteractionService interactionService)
+    private static IServiceProvider ConfigureServices()
     {
         return new ServiceCollection()
-            .AddSingleton(client)
-            .AddSingleton(interactionService)
+            .AddSingleton<ConfigurationService>()
+            .AddSingleton<DiscordService>()
             .BuildServiceProvider();
-    }
-
-    private static void RegisterEventHandlers(DiscordSocketClient client, InteractionService interactionService, IServiceProvider services)
-    {
-        client.Ready += async () =>
-        {
-            await interactionService.AddModuleAsync<ProfileModule>(services);
-            await interactionService.RegisterCommandsGloballyAsync();
-        };
-
-        client.SlashCommandExecuted += async (command) =>
-        {
-            await interactionService.ExecuteCommandAsync(new SocketInteractionContext(client, command), services);
-        };
     }
 }

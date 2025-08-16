@@ -1,13 +1,14 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using DiscordBot.Models;
+using DiscordBot.Constants;
 
 namespace DiscordBot.Services;
 
 public static class ProfileService
 {
     private static readonly ConcurrentDictionary<ulong, AdminProfile> _profiles = new();
-    private const string ProfilesFile = "profiles.json";
+    private const string ProfilesFile = FileNames.Profiles;
 
     public static void LoadProfiles()
     {

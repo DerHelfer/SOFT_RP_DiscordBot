@@ -1,5 +1,6 @@
 using Discord;
 using DiscordBot.Models;
+using DiscordBot.Constants;
 
 namespace DiscordBot.Builders;
 
@@ -31,13 +32,13 @@ public static class EmbedBuilders
         if (profile?.CheatChecks > 0)
             builder.AddField("Проверки на читы", profile.CheatChecks.ToString(), true);
 
-        return builder.WithFooter("Система администрации").Build();
+        return builder.WithFooter(Messages.AdminSystem).Build();
     }
 
     public static Embed CreateAdminAddedEmbed(IUser user, string name, string steamId, string rank, string? url)
     {
         return new EmbedBuilder()
-            .WithTitle("Администратор добавлен")
+            .WithTitle(Messages.AdminAdded)
             .WithColor(0x00FF00)
             .WithThumbnailUrl(user.GetAvatarUrl() ?? user.GetDefaultAvatarUrl())
             .AddField("Пользователь", user.Mention, false)
@@ -45,7 +46,7 @@ public static class EmbedBuilders
             .AddField("Steam ID", steamId, false)
             .AddField("Ранг", rank, false)
             .AddField("Форум", url ?? "N/A", false)
-            .WithFooter("Система администрации")
+            .WithFooter(Messages.AdminSystem)
             .Build();
     }
 }
